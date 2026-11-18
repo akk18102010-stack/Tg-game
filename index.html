@@ -153,14 +153,13 @@
     <div class="inventory" id="inventory"></div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+        const tg = window.Telegram && window.Telegram.WebApp;
+        if (tg) { tg.expand(); }
 
         let balance = 250;
         let inventory = [];
         let isSpinning = false;
 
-        // Список подарков и шансы их выпадения (в весах)
         const gifts = [
             { name: "Сердце", emoji: "💝", price: 15, rarity: "common", weight: 45 },
             { name: "Мишка", emoji: "🧸", price: 25, rarity: "common", weight: 30 },
@@ -197,7 +196,8 @@
         function spin() {
             if (isSpinning) return;
             if (balance < 50) {
-                tg.showAlert("Недостаточно звёзд! Продай подарки из инвентаря.");
+                if (tg) { tg.showAlert("Недостаточно звёзд! Продай подарки из инвентаря."); }
+                else { alert("Недостаточно звёзд! Продай подарки из инвентаря."); }
                 return;
             }
 
@@ -226,18 +226,18 @@
             track.innerHTML = html;
 
             setTimeout(() => {
-                const itemWidth = 100; // 90px ширина + 10px отступ
+                const itemWidth = 100;
                 const offset = (winnerIndex * itemWidth) + 45;
                 track.style.transition = 'transform 4s cubic-bezier(0.12, 0.8, 0.15, 1)';
                 track.style.transform = `translateX(-${offset}px)`;
-                tg.HapticFeedback.impactOccurred('medium');
+                if (tg && tg.HapticFeedback) { tg.HapticFeedback.impactOccurred('medium'); }
             }, 50);
 
             setTimeout(() => {
                 isSpinning = false;
                 document.getElementById('spinBtn').disabled = false;
                 inventory.push(wonGift);
-                tg.HapticFeedback.notificationOccurred('success');
+                if (tg && tg.HapticFeedback) { tg.HapticFeedback.notificationOccurred('success'); }
                 updateUI();
             }, 4150);
         }
@@ -245,7 +245,7 @@
         function sellGift(index) {
             balance += inventory[index].price;
             inventory.splice(index, 1);
-            tg.HapticFeedback.impactOccurred('light');
+            if (tg && tg.HapticFeedback) { tg.HapticFeedback.impactOccurred('light'); }
             updateUI();
         }
 
