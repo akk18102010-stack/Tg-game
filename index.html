@@ -3,289 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gift Roulette</title>
+    <title>VisaMan Gift Go</title>
     <script src="https://telegram.org"></script>
-    <style>
-        body {
-            background: linear-gradient(180deg, #13141c 0%, #1d1f2b 100%);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            user-select: none;
-        }
-        .header {
-            width: 100%;
-            max-width: 380px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 12px 16px;
-            border-radius: 16px;
-            box-sizing: border-box;
-            margin-bottom: 24px;
-        }
-        .balance {
-            font-size: 18px;
-            font-weight: bold;
-            color: #ffd700;
-        }
-        .roulette-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 380px;
-            height: 130px;
-            background: #0d0e14;
-            border-radius: 20px;
-            border: 2px solid #2c2f42;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .pointer {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 50%;
-            width: 3px;
-            background: #ff3b5c;
-            transform: translateX(-50%);
-            z-index: 10;
-            box-shadow: 0 0 10px #ff3b5c;
-        }
-        .track {
-            display: flex;
-            gap: 10px;
-            will-change: transform;
-        }
-        .item {
-            width: 90px;
-            min-width: 90px;
-            height: 100px;
-            background: #1c1e2b;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(255,255,255,0.08);
-            box-sizing: border-box;
-            flex-shrink: 0;
-        }
-        .item.rare { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
-        .item.epic { border-color: #a855f7; background: rgba(168, 85, 247, 0.15); }
-        .item.legendary { border-color: #eab308; background: rgba(234, 179, 8, 0.2); }
-        .emoji { font-size: 38px; margin-bottom: 4px; }
-        .price { font-size: 12px; color: #aaa; font-weight: bold; }
-
-        .result-banner {
-            margin-top: 16px;
-            height: 24px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #4ade80;
-            text-align: center;
-        }
-
-        .spin-btn {
-            margin-top: 12px;
-            width: 100%;
-            max-width: 380px;
-            padding: 16px;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-            border: none;
-            border-radius: 16px;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-        }
-        .spin-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .inventory-title {
-            width: 100%;
-            max-width: 380px;
-            margin-top: 24px;
-            margin-bottom: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #ccc;
-        }
-        .inventory {
-            width: 100%;
-            max-width: 380px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        .inv-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 10px;
-            text-align: center;
-        }
-        .sell-btn {
-            margin-top: 6px;
-            background: #22c55e;
-            border: none;
-            color: white;
-            font-size: 11px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="header">
-        <div>🎁 <b>GIFT GO</b></div>
-        <div class="balance">⭐ <span id="stars">250</span></div>
+    <!-- ЭКРАН ЗАГРУЗКИ (как на 4 скриншоте) -->
+    <div id="loader" class="loader-screen">
+        <div class="loader-gift">🎁</div>
+        <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+        <div class="loader-text">Загрузка подарков...</div>
     </div>
 
-    <div class="roulette-wrapper" id="wrapper">
-        <div class="pointer"></div>
-        <div class="track" id="track"></div>
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+    <div class="top-bar">
+        <div class="live-feed" id="liveFeed">
+            <span class="live-dot"></span> <span id="liveText">C Money выиграл 🧸 Мишка</span>
+        </div>
+        <div class="top-controls">
+            <div class="ticket-pill" onclick="switchTab('raffles')">
+                <span id="ticketCount">0</span> 🎟️
+            </div>
+            <div class="balance-pill" onclick="openDepositModal()">
+                <span class="plus-icon">+</span>
+                <span id="balanceAmount">50</span>
+                <svg class="gem-icon" viewBox="0 0 24 24"><path fill="#38bdf8" d="M12 2L2 9l10 13L22 9 12 2zm0 3.5L18.5 9 12 18.2 5.5 9 12 5.5z"/><path fill="#7dd3fc" d="M12 2v16.2L18.5 9 12 2z"/></svg>
+            </div>
+        </div>
     </div>
 
-    <div class="result-banner" id="resultBanner"></div>
+    <!-- ВКЛАДКА 1: ИГРАТЬ (РУЛЕТКА И КЕЙСЫ) -->
+    <div id="tab-play" class="tab-content active">
+        <!-- Выбор кейсов -->
+        <div class="cases-scroll" id="casesList"></div>
 
-    <button class="spin-btn" id="spinBtn" onclick="spin()">Крутить за 50 ⭐</button>
+        <!-- Окно рулетки -->
+        <div class="roulette-box" id="wrapper">
+            <div class="pointer-top">▼</div>
+            <div class="pointer-line"></div>
+            <div class="pointer-bottom">▲</div>
+            <div class="track" id="track"></div>
+        </div>
 
-    <div class="inventory-title">🎒 Твои подарки (нажми, чтобы продать):</div>
-    <div class="inventory" id="inventory"></div>
+        <!-- Панель управления и DEMO -->
+        <div class="controls-row">
+            <div class="timer-box">🎁 Кейсы VisaMan NFT</div>
+            <div class="demo-box">
+                <span>DEMO</span>
+                <label class="switch">
+                    <input type="checkbox" id="demoToggle" onchange="toggleDemo()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
 
-    <script>
-        const tg = window.Telegram && window.Telegram.WebApp;
-        if (tg) { tg.expand(); }
+        <button class="main-spin-btn" id="spinBtn" onclick="startSpin()">
+            Мне повезёт, Go! <span id="spinCostBadge" class="cost-badge">FREE</span>
+        </button>
 
-        let balance = 250;
-        let inventory = [];
-        let isSpinning = false;
+        <div class="section-subtitle">Вы можете выиграть...</div>
+        <div class="drops-grid" id="dropsPreview"></div>
+    </div>
 
-        const gifts = [
-            { name: "Сердце", emoji: "💝", price: 15, rarity: "common", weight: 45 },
-            { name: "Мишка", emoji: "🧸", price: 25, rarity: "common", weight: 30 },
-            { name: "Роза", emoji: "🌹", price: 50, rarity: "rare", weight: 15 },
-            { name: "Торт", emoji: "🎂", price: 100, rarity: "epic", weight: 7 },
-            { name: "Кубок", emoji: "🏆", price: 250, rarity: "epic", weight: 2.5 },
-            { name: "NFT Пепе", emoji: "🐸", price: 1000, rarity: "legendary", weight: 0.5 }
-        ];
+    <!-- ВКЛАДКА 2: РОЗЫГРЫШИ -->
+    <div id="tab-raffles" class="tab-content">
+        <div class="card-panel">
+            <h3>🎟️ Мега-розыгрыш NFT Пепе</h3>
+            <p class="muted">Каждый билет увеличивает ваш шанс на победу на <b>0.1%</b>!</p>
+            <div class="raffle-stats">
+                <div>Ваши билеты: <b id="raffleTickets">0</b></div>
+                <div>Ваш шанс: <b id="raffleChance" style="color:#4ade80">0.0%</b></div>
+            </div>
+            <button class="action-btn blue" onclick="buyTicket()">Купить 1 билет за 10 💎</button>
+            <button class="action-btn purple" style="margin-top:8px" onclick="enterRaffle()">Участвовать в розыгрыше</button>
+        </div>
+    </div>
 
-        function pickGift() {
-            const totalWeight = gifts.reduce((sum, g) => sum + g.weight, 0);
-            let random = Math.random() * totalWeight;
-            for (let gift of gifts) {
-                if (random < gift.weight) return gift;
-                random -= gift.weight;
-            }
-            return gifts[0];
-        }
+    <!-- ВКЛАДКА 3: ЗАДАНИЯ -->
+    <div id="tab-tasks" class="tab-content">
+        <div class="section-title">💎 Задания и бонусы</div>
+        <div id="tasksList" class="tasks-list"></div>
+    </div>
 
-        function renderInitialTrack() {
-            const track = document.getElementById('track');
-            track.innerHTML = '';
-            for (let i = 0; i < 45; i++) {
-                const g = gifts[Math.floor(Math.random() * gifts.length)];
-                track.innerHTML += `
-                    <div class="item ${g.rarity}">
-                        <div class="emoji">${g.emoji}</div>
-                        <div class="price">${g.price} ⭐</div>
+    <!-- ВКЛАДКА 4: ПРОФИЛЬ (как на 5 скриншоте) -->
+    <div id="tab-profile" class="tab-content">
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="avatar" id="userAvatar">V</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="userName">Игрок</div>
+                    <div class="profile-bal">
+                        <span id="profileBalance">50</span>
+                        <svg class="gem-icon" viewBox="0 0 24 24"><path fill="#38bdf8" d="M12 2L2 9l10 13L22 9 12 2z"/></svg>
                     </div>
-                `;
-            }
-        }
+                </div>
+            </div>
+            <button class="action-btn blue" onclick="openDepositModal()">Пополнить баланс</button>
+        </div>
 
-        function spin() {
-            if (isSpinning) return;
-            if (balance < 50) {
-                if (tg) { tg.showAlert("Недостаточно звёзд! Продай подарки из инвентаря."); }
-                else { alert("Недостаточно звёзд! Продай подарки из инвентаря."); }
-                return;
-            }
+        <div class="ref-banner">
+            <div class="ref-title">Приглашай друзей</div>
+            <div class="ref-sub">и зарабатывай 10% от их депозитов</div>
+            <button class="ref-btn" onclick="inviteFriend()">Пригласить друзей</button>
+        </div>
 
-            isSpinning = true;
-            balance -= 50;
-            document.getElementById('resultBanner').innerText = '';
-            updateUI();
-            document.getElementById('spinBtn').disabled = true;
+        <div class="section-title">🎒 Ваши подарки (нажмите, чтобы продать)</div>
+        <div id="inventoryGrid" class="inventory-grid">
+            <div class="empty-inv">🔍 У вас ещё нет подарков</div>
+        </div>
+    </div>
 
-            const track = document.getElementById('track');
-            const wrapper = document.getElementById('wrapper');
-            track.style.transition = 'none';
-            track.style.transform = 'translateX(0px)';
+    <!-- НИЖНЕЕ МЕНЮ НАВИГАЦИИ -->
+    <nav class="bottom-nav">
+        <div class="nav-item" onclick="switchTab('raffles', this)">
+            <span class="nav-icon">🎟️</span>
+            <span>Розыгрыши</span>
+        </div>
+        <div class="nav-item active" onclick="switchTab('play', this)">
+            <span class="nav-icon">🎲</span>
+            <span>Играть</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('tasks', this)">
+            <span class="nav-icon">💎</span>
+            <span>Задания</span>
+            <span class="badge-dot" id="taskBadge">4</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('profile', this)">
+            <span class="nav-icon">👤</span>
+            <span>Профиль</span>
+        </div>
+    </nav>
 
-            const winnerIndex = 35;
-            const wonGift = pickGift();
-            let html = '';
+    <!-- МОДАЛЬНОЕ ОКНО ПОПОЛНЕНИЯ БАЛАНСА -->
+    <div id="depositModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <b>Пополнение баланса (1 ⭐ = 1 💎)</b>
+                <span class="close-modal" onclick="closeModal('depositModal')">✕</span>
+            </div>
+            <input type="number" id="depAmount" value="100" min="1" class="dep-input" placeholder="Введите сумму">
+            <button class="action-btn blue" onclick="payStars()">⭐ Оплатить Telegram Stars</button>
+            <button class="action-btn dark" style="margin-top:10px" onclick="payWallet()">👛 Пополнить через Кошелёк (TON/GRAM)</button>
+        </div>
+    </div>
 
-            for (let i = 0; i < 45; i++) {
-                const g = (i === winnerIndex) ? wonGift : gifts[Math.floor(Math.random() * gifts.length)];
-                html += `
-                    <div class="item ${g.rarity}">
-                        <div class="emoji">${g.emoji}</div>
-                        <div class="price">${g.price} ⭐</div>
-                    </div>
-                `;
-            }
-            track.innerHTML = html;
+    <!-- МОДАЛЬНОЕ ОКНО ПРОВЕРКИ ПОДПИСКИ НА КАНАЛ И ЧАТ -->
+    <div id="subModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <b>Бесплатный кейс дня</b>
+                <span class="close-modal" onclick="closeModal('subModal')">✕</span>
+            </div>
+            <p class="muted">Чтобы открыть бесплатный кейс, подпишитесь на наш канал и чат:</p>
+            <a href="https://t.me/VisamanNFT" target="_blank" class="sub-link" onclick="markSub('channel')">1. Подписаться на канал @VisamanNFT</a>
+            <a href="https://t.me/VisamanNFTchat" target="_blank" class="sub-link" onclick="markSub('chat')">2. Вступить в чат @VisamanNFTchat</a>
+            <button class="action-btn green" style="margin-top:12px" onclick="verifySubAndSpin()">✅ Я подписался, открыть!</button>
+        </div>
+    </div>
 
-            setTimeout(() => {
-                // Точный расчёт центра окна минус центр победной карточки
-                const wrapperCenter = wrapper.offsetWidth / 2;
-                const cardStep = 100; // 90px ширина карточки + 10px отступ
-                const cardCenter = (winnerIndex * cardStep) + 45;
-                const finalOffset = cardCenter - wrapperCenter;
-
-                track.style.transition = 'transform 4s cubic-bezier(0.12, 0.8, 0.15, 1)';
-                track.style.transform = `translateX(-${finalOffset}px)`;
-                if (tg && tg.HapticFeedback) { tg.HapticFeedback.impactOccurred('medium'); }
-            }, 50);
-
-            setTimeout(() => {
-                isSpinning = false;
-                document.getElementById('spinBtn').disabled = false;
-                inventory.push(wonGift);
-                document.getElementById('resultBanner').innerText = `🎉 Выпало: ${wonGift.emoji} ${wonGift.name} (${wonGift.price} ⭐)`;
-                if (tg && tg.HapticFeedback) { tg.HapticFeedback.notificationOccurred('success'); }
-                updateUI();
-            }, 4150);
-        }
-
-        function sellGift(index) {
-            balance += inventory[index].price;
-            inventory.splice(index, 1);
-            if (tg && tg.HapticFeedback) { tg.HapticFeedback.impactOccurred('light'); }
-            updateUI();
-        }
-
-        function updateUI() {
-            document.getElementById('stars').innerText = balance;
-            const invEl = document.getElementById('inventory');
-            invEl.innerHTML = '';
-            inventory.forEach((g, idx) => {
-                invEl.innerHTML += `
-                    <div class="inv-card">
-                        <div style="font-size: 32px;">${g.emoji}</div>
-                        <div style="font-size: 12px; margin-top: 4px;">${g.name}</div>
-                        <button class="sell-btn" onclick="sellGift(${idx})">Продать ${g.price} ⭐</button>
-                    </div>
-                `;
-        });
-}
-renderInitialTrack();
-            </script>
+    <script src="app.js"></script>
 </body>
-</html>
-
+    </html>
     
