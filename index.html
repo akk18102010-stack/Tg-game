@@ -21,6 +21,7 @@
         }
         .header {
             width: 100%;
+            max-width: 380px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -62,10 +63,10 @@
         .track {
             display: flex;
             gap: 10px;
-            padding-left: 50%;
-            transition: transform 4s cubic-bezier(0.12, 0.8, 0.15, 1);
+            will-change: transform;
         }
         .item {
+            width: 90px;
             min-width: 90px;
             height: 100px;
             background: #1c1e2b;
@@ -75,6 +76,7 @@
             align-items: center;
             justify-content: center;
             border: 1px solid rgba(255,255,255,0.08);
+            box-sizing: border-box;
             flex-shrink: 0;
         }
         .item.rare { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
@@ -83,8 +85,17 @@
         .emoji { font-size: 38px; margin-bottom: 4px; }
         .price { font-size: 12px; color: #aaa; font-weight: bold; }
 
+        .result-banner {
+            margin-top: 16px;
+            height: 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #4ade80;
+            text-align: center;
+        }
+
         .spin-btn {
-            margin-top: 24px;
+            margin-top: 12px;
             width: 100%;
             max-width: 380px;
             padding: 16px;
@@ -104,7 +115,7 @@
         .inventory-title {
             width: 100%;
             max-width: 380px;
-            margin-top: 28px;
+            margin-top: 24px;
             margin-bottom: 12px;
             font-size: 16px;
             font-weight: bold;
@@ -142,10 +153,12 @@
         <div class="balance">⭐ <span id="stars">250</span></div>
     </div>
 
-    <div class="roulette-wrapper">
+    <div class="roulette-wrapper" id="wrapper">
         <div class="pointer"></div>
         <div class="track" id="track"></div>
     </div>
+
+    <div class="result-banner" id="resultBanner"></div>
 
     <button class="spin-btn" id="spinBtn" onclick="spin()">Крутить за 50 ⭐</button>
 
@@ -182,7 +195,7 @@
         function renderInitialTrack() {
             const track = document.getElementById('track');
             track.innerHTML = '';
-            for (let i = 0; i < 40; i++) {
+            for (let i = 0; i < 45; i++) {
                 const g = gifts[Math.floor(Math.random() * gifts.length)];
                 track.innerHTML += `
                     <div class="item ${g.rarity}">
@@ -203,18 +216,20 @@
 
             isSpinning = true;
             balance -= 50;
+            document.getElementById('resultBanner').innerText = '';
             updateUI();
             document.getElementById('spinBtn').disabled = true;
 
             const track = document.getElementById('track');
+            const wrapper = document.getElementById('wrapper');
             track.style.transition = 'none';
             track.style.transform = 'translateX(0px)';
 
-            const winnerIndex = 32;
+            const winnerIndex = 35;
             const wonGift = pickGift();
             let html = '';
 
-            for (let i = 0; i < 40; i++) {
+            for (let i = 0; i < 45; i++) {
                 const g = (i === winnerIndex) ? wonGift : gifts[Math.floor(Math.random() * gifts.length)];
                 html += `
                     <div class="item ${g.rarity}">
@@ -226,10 +241,14 @@
             track.innerHTML = html;
 
             setTimeout(() => {
-                const itemWidth = 100;
-                const offset = (winnerIndex * itemWidth) + 45;
+                // Точный расчёт центра окна минус центр победной карточки
+                const wrapperCenter = wrapper.offsetWidth / 2;
+                const cardStep = 100; // 90px ширина карточки + 10px отступ
+                const cardCenter = (winnerIndex * cardStep) + 45;
+                const finalOffset = cardCenter - wrapperCenter;
+
                 track.style.transition = 'transform 4s cubic-bezier(0.12, 0.8, 0.15, 1)';
-                track.style.transform = `translateX(-${offset}px)`;
+                track.style.transform = `translateX(-${finalOffset}px)`;
                 if (tg && tg.HapticFeedback) { tg.HapticFeedback.impactOccurred('medium'); }
             }, 50);
 
@@ -237,6 +256,7 @@
                 isSpinning = false;
                 document.getElementById('spinBtn').disabled = false;
                 inventory.push(wonGift);
+                document.getElementById('resultBanner').innerText = `🎉 Выпало: ${wonGift.emoji} ${wonGift.name} (${wonGift.price} ⭐)`;
                 if (tg && tg.HapticFeedback) { tg.HapticFeedback.notificationOccurred('success'); }
                 updateUI();
             }, 4150);
@@ -261,10 +281,8 @@
                         <button class="sell-btn" onclick="sellGift(${idx})">Продать ${g.price} ⭐</button>
                     </div>
                 `;
-            });
-        }
+        });
+}
+renderInitialTrack();
 
-        renderInitialTrack();
-    </script>
-</body>
-</html>
+    
