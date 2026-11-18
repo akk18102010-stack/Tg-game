@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gift Roulette</title>
+    <script src="https://telegram.org"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #13141c 0%, #1d1f2b 100%);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 12px 16px;
+            border-radius: 16px;
+            box-sizing: border-box;
+            margin-bottom: 24px;
+        }
+        .balance {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        .roulette-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 380px;
+            height: 130px;
+            background: #0d0e14;
+            border-radius: 20px;
+            border: 2px solid #2c2f42;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .pointer {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 3px;
+            background: #ff3b5c;
+            transform: translateX(-50%);
+            z-index: 10;
+            box-shadow: 0 0 10px #ff3b5c;
+        }
+        .track {
+            display: flex;
+            gap: 10px;
+            padding-left: 50%;
+            transition: transform 4s cubic-bezier(0.12, 0.8, 0.15, 1);
+        }
+        .item {
+            min-width: 90px;
+            height: 100px;
+            background: #1c1e2b;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+        .item.rare { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
+        .item.epic { border-color: #a855f7; background: rgba(168, 85, 247, 0.15); }
+        .item.legendary { border-color: #eab308; background: rgba(234, 179, 8, 0.2); }
+        .emoji { font-size: 38px; margin-bottom: 4px; }
+        .price { font-size: 12px; color: #aaa; font-weight: bold; }
+
+        .spin-btn {
+            margin-top: 24px;
+            width: 100%;
+            max-width: 380px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+        }
+        .spin-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .inventory-title {
+            width: 100%;
+            max-width: 380px;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ccc;
+        }
+        .inventory {
+            width: 100%;
+            max-width: 380px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .inv-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+        .sell-btn {
+            margin-top: 6px;
+            background: #22c55e;
+            border: none;
+            color: white;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>🎁 <b>GIFT GO</b></div>
+        <div class="balance">⭐ <span id="stars">250</span></div>
+    </div>
+
+    <div class="roulette-wrapper">
+        <div class="pointer"></div>
+        <div class="track" id="track"></div>
+    </div>
+
+    <button class="spin-btn" id="spinBtn" onclick="spin()">Крутить за 50 ⭐</button>
+
+    <div class="inventory-title">🎒 Твои подарки (нажми, чтобы продать):</div>
+    <div class="inventory" id="inventory"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let balance = 250;
+        let inventory = [];
+        let isSpinning = false;
+
+        // Список подарков и шансы их выпадения (в весах)
+        const gifts = [
+            { name: "Сердце", emoji: "💝", price: 15, rarity: "common", weight: 45 },
+            { name: "Мишка", emoji: "🧸", price: 25, rarity: "common", weight: 30 },
+            { name: "Роза", emoji: "🌹", price: 50, rarity: "rare", weight: 15 },
+            { name: "Торт", emoji: "🎂", price: 100, rarity: "epic", weight: 7 },
+            { name: "Кубок", emoji: "🏆", price: 250, rarity: "epic", weight: 2.5 },
+            { name: "NFT Пепе", emoji: "🐸", price: 1000, rarity: "legendary", weight: 0.5 }
+        ];
+
+        function pickGift() {
+            const totalWeight = gifts.reduce((sum, g) => sum + g.weight, 0);
+            let random = Math.random() * totalWeight;
+            for (let gift of gifts) {
+                if (random < gift.weight) return gift;
+                random -= gift.weight;
+            }
+            return gifts[0];
+        }
+
+        function renderInitialTrack() {
+            const track = document.getElementById('track');
+            track.innerHTML = '';
+            for (let i = 0; i < 40; i++) {
+                const g = gifts[Math.floor(Math.random() * gifts.length)];
+                track.innerHTML += `
+                    <div class="item ${g.rarity}">
+                        <div class="emoji">${g.emoji}</div>
+                        <div class="price">${g.price} ⭐</div>
+                    </div>
+                `;
+            }
+        }
+
+        function spin() {
+            if (isSpinning) return;
+            if (balance < 50) {
+                tg.showAlert("Недостаточно звёзд! Продай подарки из инвентаря.");
+                return;
+            }
+
+            isSpinning = true;
+            balance -= 50;
+            updateUI();
+            document.getElementById('spinBtn').disabled = true;
+
+            const track = document.getElementById('track');
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0px)';
+
+            const winnerIndex = 32;
+            const wonGift = pickGift();
+            let html = '';
+
+            for (let i = 0; i < 40; i++) {
+                const g = (i === winnerIndex) ? wonGift : gifts[Math.floor(Math.random() * gifts.length)];
+                html += `
+                    <div class="item ${g.rarity}">
+                        <div class="emoji">${g.emoji}</div>
+                        <div class="price">${g.price} ⭐</div>
+                    </div>
+                `;
+            }
+            track.innerHTML = html;
+
+            setTimeout(() => {
+                const itemWidth = 100; // 90px ширина + 10px отступ
+                const offset = (winnerIndex * itemWidth) + 45;
+                track.style.transition = 'transform 4s cubic-bezier(0.12, 0.8, 0.15, 1)';
+                track.style.transform = `translateX(-${offset}px)`;
+                tg.HapticFeedback.impactOccurred('medium');
+            }, 50);
+
+            setTimeout(() => {
+                isSpinning = false;
+                document.getElementById('spinBtn').disabled = false;
+                inventory.push(wonGift);
+                tg.HapticFeedback.notificationOccurred('success');
+                updateUI();
+            }, 4150);
+        }
+
+        function sellGift(index) {
+            balance += inventory[index].price;
+            inventory.splice(index, 1);
+            tg.HapticFeedback.impactOccurred('light');
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('stars').innerText = balance;
+            const invEl = document.getElementById('inventory');
+            invEl.innerHTML = '';
+            inventory.forEach((g, idx) => {
+                invEl.innerHTML += `
+                    <div class="inv-card">
+                        <div style="font-size: 32px;">${g.emoji}</div>
+                        <div style="font-size: 12px; margin-top: 4px;">${g.name}</div>
+                        <button class="sell-btn" onclick="sellGift(${idx})">Продать ${g.price} ⭐</button>
+                    </div>
+                `;
+            });
+        }
+
+        renderInitialTrack();
+    </script>
+</body>
+</html>
